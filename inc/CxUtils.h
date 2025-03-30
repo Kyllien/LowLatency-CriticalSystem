@@ -6,6 +6,8 @@
 #define CXUTILS_H
 
 #include <array>
+#include <optional>
+#include <stdexcept>
 
 // File d'attente à taille fixe
 template<typename T, size_t MaxSize>
@@ -68,6 +70,83 @@ public:
         slot->next = free_list;
         free_list = slot;
     }
+};
+
+template<typename Enum, typename Value, size_t Size>
+class ArrayMap {
+private:
+    // Table de mapping d'enum vers index
+    using IndexType = size_t;
+    std::array<std::optional<IndexType>, 16> enumToIndex; // Taille suffisante pour couvrir les valeurs
+
+    // Stockage des valeurs
+    std::array<std::pair<Enum, Value>, Size> data;
+    size_t count = 0;
+
+public:
+    ArrayMap() {
+        // Initialiser le mapping à "non présent"
+        for (auto& entry : enumToIndex) {
+            entry = std::nullopt;
+        }
+    }
+
+    void insert(Enum key, Value value) {
+        // Vérifier si la clé existe déjà
+        auto enumIdx = static_cast<size_t>(key);
+        if (enumIdx >= enumToIndex.size()) {
+            throw std::out_of_range("Enum value out of bounds");
+        }
+
+        if (enumToIndex[enumIdx].has_value()) {
+            // Mettre à jour la valeur existante
+            data[enumToIndex[enumIdx].value()].second = std::move(value);
+        } else {
+            // Ajouter une nouvelle entrée
+            if (count >= Size) {
+                throw std::out_of_range("Map is full");
+            }
+
+            enumToIndex[enumIdx] = count;
+            data[count] = std::make_pair(key, std::move(value));
+            count++;
+        }
+    }
+
+    Value* find(Enum key) {
+        auto enumIdx = static_cast<size_t>(key);
+        if (enumIdx < enumToIndex.size() && enumToIndex[enumIdx].has_value()) {
+            return &data[enumToIndex[enumIdx].value()].second;
+        }
+        return nullptr;
+    }
+
+    const Value* find(Enum key) const {
+        auto enumIdx = static_cast<size_t>(key);
+        if (enumIdx < enumToIndex.size() && enumToIndex[enumIdx].has_value()) {
+            return &data[enumToIndex[enumIdx].value()].second;
+        }
+        return nullptr;
+    }
+
+    Value& operator[](Enum key) {
+        Value* found = find(key);
+        if (found) {
+            return *found;
+        }
+
+        // Insérer une nouvelle entrée
+        insert(key, Value{});
+        return *find(key);
+    }
+
+    // Itérateurs
+    auto begin() { return data.begin(); }
+    auto end() { return data.begin() + count; }
+    auto begin() const { return data.begin(); }
+    auto end() const { return data.begin() + count; }
+
+    size_t size() const { return count; }
 };
 
 #endif //CXUTILS_H
