@@ -5,4 +5,5 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(LowLatency_CriticalSystem main.cpp
         inc/CxHighResolutionTimer.h
-        src/CxHighResolutionTimer.cpp)
+        src/CxHighResolutionTimer.cpp
+        inc/CxUtils.h)
